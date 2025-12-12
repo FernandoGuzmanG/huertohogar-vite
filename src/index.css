@@ -1,0 +1,315 @@
+/* 1. Importación de Fuentes: Montserrat (Texto) y Playfair Display (Títulos) */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700&family=Playfair+Display:wght@700&display=swap');
+
+/* 2. Variables de Color (Basadas en el PDF y tus ajustes) */
+:root {
+  --color-bg-principal: #F7F7F7;    /* Blanco Suave */
+  --color-verde: #2E8B57;           /* Verde Esmeralda (Botones, Navbar) */
+  --color-amarillo: #FFD700;        /* Amarillo Mostaza (Enlaces, Acciones) */
+  --color-cafe: #8B4513;            /* Marrón Claro (Títulos, Footer) */
+  --color-texto-main: #333333;      /* Gris Oscuro */
+  
+  --font-principal: 'Montserrat', sans-serif;
+  --font-titulos: 'Playfair Display', serif;
+}
+
+/* 3. Reseteo y Layout Global (Soluciona el problema de márgenes y centrado forzado) */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100vh;
+  background-color: var(--color-bg-principal);
+  color: var(--color-texto-main);
+  font-family: var(--font-principal);
+  
+  /* IMPORTANTE: Eliminamos display:flex y place-items:center que trae Vite por defecto */
+}
+
+#root {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* 4. Tipografía Global */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-titulos);
+  font-weight: 700;
+  /* Por defecto los títulos pueden ser café o verde, ajusta según preferencia global */
+  color: var(--color-cafe); 
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+  transition: opacity 0.2s;
+}
+
+button {
+  font-family: var(--font-principal);
+}
+
+/* =========================================
+   ESTILOS DE COMPONENTES
+   ========================================= */
+
+/* --- HEADER / NAVBAR --- */
+.navbar-custom {
+  background-color: var(--color-verde) !important;
+  padding-top: 15px;
+  padding-bottom: 15px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.brand-custom {
+  font-family: var(--font-titulos);
+  font-size: 28px;
+  font-weight: 700;
+  color: white !important;
+}
+
+.nav-link-custom {
+  color: white !important;
+  font-weight: 500;
+  margin: 0 10px;
+}
+
+.nav-link-custom:hover {
+  color: var(--color-amarillo) !important;
+  opacity: 0.9;
+}
+
+.btn-auth {
+  background-color: var(--color-amarillo) !important;
+  border-color: var(--color-amarillo) !important;
+  color: #000 !important;
+  font-weight: 700 !important;
+  margin-right: 10px;
+}
+
+.btn-auth:hover {
+  filter: brightness(0.95);
+}
+
+/* --- LOGIN / REGISTER CARD --- */
+.card-header-custom {
+  background-color: var(--color-verde) !important;
+  color: white !important;
+}
+
+.btn-submit-custom {
+  background-color: var(--color-amarillo) !important;
+  border-color: var(--color-amarillo) !important;
+  color: black !important;
+  font-weight: bold !important;
+}
+
+/* --- FOOTER --- */
+.footer-custom {
+  background-color: var(--color-cafe); /* Marrón (#8B4513) */
+  color: white;
+  padding: 40px 0;
+  margin-top: auto;
+  font-size: 0.9rem;
+}
+
+.footer-custom h5 {
+  color: white !important; /* Forzamos blanco sobre el fondo marrón */
+  margin-bottom: 20px;
+}
+
+.footer-link {
+  color: var(--color-amarillo) !important; /* Enlaces en amarillo */
+  text-decoration: none;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.footer-link:hover {
+  text-decoration: underline;
+  opacity: 0.8;
+}
+
+/* Iconos sociales en footer */
+.social-icon {
+  margin-right: 10px;
+}
+
+/* =========================================
+   SECCIÓN: NUESTROS PILARES (FEATURES)
+   ========================================= */
+.section-title {
+  color: var(--color-cafe);
+  font-family: var(--font-titulos);
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.section-lead {
+  text-align: center;
+  margin-bottom: 3rem;
+  color: var(--color-texto-sec); /* Usamos el gris medio del PDF (si no está definido, usa #666) */
+  max-width: 700px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.pillar-card {
+  background-color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 30px 20px;
+  text-align: center;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  height: 100%; /* Para que todas tengan la misma altura */
+  box-shadow: 0 4px 6px rgba(0,0,0,0.05); /* Sombra suave */
+}
+
+.pillar-card:hover {
+  transform: translateY(-5px); /* Efecto de elevación al pasar el mouse */
+  box-shadow: 0 10px 15px rgba(46, 139, 87, 0.15); /* Sombra verdosa suave */
+}
+
+.pillar-icon {
+  color: var(--color-verde);
+  font-size: 3rem;
+  margin-bottom: 20px;
+}
+
+.pillar-title {
+  font-family: var(--font-titulos); /* Playfair Display */
+  font-weight: 700;
+  color: var(--color-cafe);
+  margin-bottom: 15px;
+}
+
+/* =========================================
+   SECCIÓN: PRODUCTOS DESTACADOS (PREVIEW)
+   ========================================= */
+.product-preview-card {
+  background-color: white;
+  border: 1px solid #eee;
+  border-radius: 10px;
+  overflow: hidden;
+  transition: all 0.3s;
+}
+
+.product-preview-card:hover {
+  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+  border-color: var(--color-verde);
+}
+
+.product-preview-img {
+  height: 200px;
+  background-color: #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #aaa;
+}
+
+.product-preview-body {
+  padding: 15px;
+  text-align: center;
+}
+
+.product-price {
+  color: var(--color-verde);
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+
+/* =========================================
+   SECCIÓN: HERO (BANNER PRINCIPAL)
+   ========================================= */
+
+.hero-section {
+  /* Fondo "Blanco Suave" del PDF o un gris muy claro para diferenciarlo del header */
+  background-color: var(--color-bg-principal); 
+  padding: 80px 0;
+  
+  /* Alineación */
+  text-align: left; /* Alineado a la izquierda en desktop se ve más moderno */
+  display: flex;
+  align-items: center;
+  min-height: 500px; /* Altura mínima para que respire */
+}
+
+/* Título Grande */
+.hero-title {
+  /* Usamos la fuente serif del PDF (Playfair Display) */
+  font-family: var(--font-titulos); 
+  
+  /* Color Verde Esmeralda para mayor impacto en el banner principal */
+  color: var(--color-verde); 
+  
+  font-size: 3.5rem; /* Tamaño grande */
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 20px;
+}
+
+/* Subtítulo / Bajada */
+.hero-subtitle {
+  font-family: var(--font-principal); /* Montserrat */
+  font-size: 1.25rem;
+  color: var(--color-texto-sec); /* Gris medio para no competir con el título */
+  margin-bottom: 30px;
+  line-height: 1.6;
+}
+
+/* Botón de Llamada a la Acción (Call to Action) */
+.btn-hero {
+  /* Amarillo Mostaza del PDF para resaltar */
+  background-color: var(--color-amarillo) !important;
+  border: none !important;
+  color: #000 !important; /* Texto negro para buen contraste */
+  font-weight: 700 !important; /* Negrita */
+  padding: 12px 35px !important;
+  font-size: 1.1rem !important;
+  border-radius: 8px !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.btn-hero:hover {
+  transform: translateY(-2px); /* Efecto de elevación sutil */
+  box-shadow: 0 4px 10px rgba(255, 215, 0, 0.4); /* Sombra amarilla */
+  background-color: #e6c200 !important; /* Un poco más oscuro */
+}
+
+/* Estilo para el contenedor de la imagen (Placeholder) */
+.hero-image-container {
+  min-height: 350px;
+  background-color: #e9ecef; /* Gris placeholder */
+  border: 2px dashed var(--color-verde); /* Borde punteado verde para indicar que falta imagen */
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Ajustes para Móviles */
+@media (max-width: 768px) {
+  .hero-section {
+    text-align: center; /* En celular centramos todo */
+    padding: 40px 0;
+  }
+  
+  .hero-title {
+    font-size: 2.5rem;
+  }
+  
+  .hero-image-container {
+    margin-top: 30px;
+    min-height: 250px;
+  }
+}
