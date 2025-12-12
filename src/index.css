@@ -284,17 +284,31 @@ button {
   background-color: #e6c200 !important; /* Un poco más oscuro */
 }
 
-/* Estilo para el contenedor de la imagen (Placeholder) */
+/* src/index.css */
+
 .hero-image-container {
   min-height: 350px;
-  background-color: #e9ecef; /* Gris placeholder */
-  border: 2px dashed var(--color-verde); /* Borde punteado verde para indicar que falta imagen */
+  /* Quitamos el color de fondo gris y el borde punteado */
+  /* background-color: #e9ecef; */
+  /* border: 2px dashed var(--color-verde); */
+  
+  /* Mantenemos el borde redondeado y añadimos sombra suave */
   border-radius: 12px;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+  
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
-  overflow: hidden;
+  overflow: hidden; /* Esto asegura que la imagen no se salga de las esquinas redondeadas */
+}
+
+/* Añadimos estilo para la etiqueta img dentro del contenedor */
+.hero-image-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* Esto hace que la imagen llene el espacio sin deformarse */
+  min-height: 350px;
 }
 
 /* Ajustes para Móviles */
