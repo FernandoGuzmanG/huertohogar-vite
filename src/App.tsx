@@ -7,6 +7,7 @@ import HomePage from './pages/HomePage';
 // Componentes temporales (los reemplazaremos con vistas completas luego)
 import LoginPage from './pages/LoginPage';
 import ProductsPage from './pages/ProductsPage'; 
+import ProfilePage from './pages/ProfilePage'; 
 
 
 function App() {
@@ -26,6 +27,7 @@ function App() {
         {/* Rutas de Autenticación */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<LoginPage isRegister={true} />} />
+        <Route path="/perfil" element={<ProfilePage />} />
         
         {/* Rutas de Tienda */}
         <Route path="/productos" element={<ProductsPage />} />
