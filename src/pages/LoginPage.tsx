@@ -154,7 +154,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ isRegister = false }) => {
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-            <Header cartItemCount={0} />
+            <Header/>
             
             <Container className="my-5 flex-grow-1 d-flex justify-content-center align-items-center">
                 <Card style={{ width: '100%', maxWidth: '450px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>

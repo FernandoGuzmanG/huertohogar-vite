@@ -10,7 +10,8 @@ import ProductsPage from './pages/ProductsPage';
 import ProfilePage from './pages/ProfilePage'; 
 import ProductDetailPage from './pages/ProductDetailPage';
 import ContactPage from './pages/ContactPage';
-
+import CartPage from './pages/CartPage';
+import AboutPage from './pages/AboutPage';
 
 function App() {
   // Nota: Ya no necesitamos 'useState' ni la lógica de contador de este archivo
@@ -34,7 +35,10 @@ function App() {
         {/* Rutas de Tienda */}
         <Route path="/productos" element={<ProductsPage />} />
         <Route path="/producto/:sku" element={<ProductDetailPage />} />
+        <Route path="/nosotros" element={<AboutPage />} />
         <Route path="/contacto" element={<ContactPage />} />
+
+        <Route path="/carrito" element={<CartPage />} />
         
         
         

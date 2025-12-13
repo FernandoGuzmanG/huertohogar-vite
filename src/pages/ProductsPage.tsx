@@ -1,17 +1,32 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Container, Row, Col, Card, Button, Form, InputGroup, Spinner, Badge } from 'react-bootstrap';
-import { Search, CartPlus, GeoAlt, XCircle } from 'react-bootstrap-icons';
+import { Container, Row, Col, Card, Button, Form, InputGroup, Spinner, Badge, Alert } from 'react-bootstrap';
+import { Search, CartPlus, GeoAlt, XCircle, CheckCircle } from 'react-bootstrap-icons';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { productService } from '../services/productService';
+import { cartService } from '../services/cartService'; // Importamos cartService
+import { useAuth } from '../hooks/useAuth'; // Importamos useAuth
 import type { Producto } from '../types/product';
+import LoginToast from '../components/LoginToast';
+import { useCart } from '../hooks/useCart'; 
+
 
 const ProductsPage: React.FC = () => {
+    const { refreshCart } = useCart(); 
+    const { isAuthenticated } = useAuth(); // Obtenemos estado de autenticación
+
     const [productos, setProductos] = useState<Producto[]>([]);
     const [loading, setLoading] = useState(true);
     
     const [busqueda, setBusqueda] = useState('');
     const [categoriaSeleccionada, setCategoriaSeleccionada] = useState<string>('');
+
+    const [showLoginAlert, setShowLoginAlert] = useState(false);
+
+    // --- NUEVOS ESTADOS PARA CARRITO EN LISTADO ---
+    const [addingId, setAddingId] = useState<string | null>(null); // Para mostrar spinner en la tarjeta específica
+    const [globalError, setGlobalError] = useState<string | null>(null);
+    const [globalSuccess, setGlobalSuccess] = useState<string | null>(null);
 
     const categorias = [
         { id: 1, nombre: 'Frutas Frescas' },
@@ -20,11 +35,9 @@ const ProductsPage: React.FC = () => {
         { id: 4, nombre: 'Productos Lácteos' }
     ];
 
-    // --- FUNCIÓN DE CARGA CENTRALIZADA ---
     const fetchProducts = useCallback(async (searchParams: { nombre?: string, idCategoria?: number }) => {
         setLoading(true);
         try {
-            // Si no hay filtros, trae todos. Si hay, busca dinámicamente.
             if (!searchParams.nombre && !searchParams.idCategoria) {
                 const data = await productService.obtenerTodos();
                 setProductos(data);
@@ -40,33 +53,47 @@ const ProductsPage: React.FC = () => {
         }
     }, []);
 
-    // --- EFECTO: BÚSQUEDA EN TIEMPO REAL (DEBOUNCE) ---
     useEffect(() => {
-        // 1. Configuramos un temporizador (Timer)
         const timeoutId = setTimeout(() => {
-            
-            // Preparamos los parámetros
             const nombre = busqueda.trim() || undefined;
             const idCat = categoriaSeleccionada ? Number(categoriaSeleccionada) : undefined;
-
-            // Llamamos a la API
             fetchProducts({ nombre, idCategoria: idCat });
-
-        }, 500); // 2. Esperamos 500ms después de que el usuario deje de tocar nada
-
-        // 3. Función de limpieza: Si el usuario escribe antes de los 500ms,
-        // cancelamos el timer anterior y creamos uno nuevo.
+        }, 500);
         return () => clearTimeout(timeoutId);
+    }, [busqueda, categoriaSeleccionada, fetchProducts]);
 
-    }, [busqueda, categoriaSeleccionada, fetchProducts]); // Se ejecuta cuando cambia texto o categoría
-
-
-    // Función para limpiar filtros manualmente
     const clearFilters = () => {
         setBusqueda('');
         setCategoriaSeleccionada('');
-        // No necesitamos llamar a fetchProducts aquí, porque al limpiar los estados,
-        // el useEffect de arriba detectará el cambio y recargará todo automáticamente.
+    };
+
+    // --- LÓGICA DE AGREGAR RÁPIDO AL CARRITO ---
+    const handleAddToCart = async (sku: string) => {
+        // 1. Validar Auth
+        if (!isAuthenticated) {
+            setShowLoginAlert(true);
+            return;
+        }
+
+        setAddingId(sku); // Activa spinner en esa tarjeta
+        setGlobalError(null);
+        setGlobalSuccess(null);
+
+        try {
+            // Agregamos 1 unidad por defecto desde el listado
+            await cartService.agregarItem(sku, 1);
+            await refreshCart();
+            setGlobalSuccess(`¡Producto agregado al carrito!`);
+            setTimeout(() => setGlobalSuccess(null), 3000);
+            
+        } catch (error) {
+            const msg = error instanceof Error ? error.message : "Error al agregar";
+            setGlobalError(msg);
+            // Si es un error, hacemos scroll arriba para que vea la alerta
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        } finally {
+            setAddingId(null);
+        }
     };
 
     const formatoPeso = (valor: number) => {
@@ -75,9 +102,18 @@ const ProductsPage: React.FC = () => {
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-            <Header cartItemCount={0} />
+            <Header />
 
             <Container className="my-5 flex-grow-1">
+                {/* ALERTAS GLOBALES */}
+                {globalError && <Alert variant="danger" onClose={() => setGlobalError(null)} dismissible>{globalError}</Alert>}
+                {globalSuccess && <Alert variant="success" onClose={() => setGlobalSuccess(null)} dismissible><CheckCircle className="me-2"/>{globalSuccess}</Alert>}
+                
+                <LoginToast 
+                    show={showLoginAlert} 
+                    onClose={() => setShowLoginAlert(false)} 
+                />
+
                 <div className="mb-5 text-center">
                     <h2 style={{ fontFamily: 'Playfair Display', color: '#8B4513', fontWeight: 'bold' }}>
                         Nuestros Productos
@@ -87,7 +123,6 @@ const ProductsPage: React.FC = () => {
 
                 <Row className="justify-content-center mb-5">
                     <Col lg={8} md={10}>
-                        {/* Quitamos onSubmit porque ya es automático */}
                         <Form onSubmit={(e) => e.preventDefault()}>
                             <Row className="g-2">
                                 <Col md={5}>
@@ -120,7 +155,6 @@ const ProductsPage: React.FC = () => {
                                 </Col>
 
                                 <Col md={3}>
-                                    {/* Botón de limpiar solo si hay filtros activos */}
                                     {(busqueda || categoriaSeleccionada) ? (
                                         <Button 
                                             variant="outline-danger"
@@ -130,7 +164,6 @@ const ProductsPage: React.FC = () => {
                                             <XCircle className="me-2"/> Limpiar
                                         </Button>
                                     ) : (
-                                        // Espaciador visual o botón desactivado si prefieres
                                         <div className="w-100"></div> 
                                     )}
                                 </Col>
@@ -139,7 +172,6 @@ const ProductsPage: React.FC = () => {
                     </Col>
                 </Row>
 
-                {/* --- LISTADO --- */}
                 {loading ? (
                     <div className="text-center py-5">
                         <Spinner animation="border" variant="success" />
@@ -199,11 +231,8 @@ const ProductsPage: React.FC = () => {
                                                     </small>
                                                 </div>
 
-                                                {/* Contenedor de Botones: Flexbox para ponerlos uno al lado del otro */}
                                                 <div className="d-flex gap-2">
-                                                    
-                                                    {/* BOTÓN 1: VER DETALLES */}
-                                                    {/* Redirige a la página de detalle usando el ID */}
+                                                    {/* BOTÓN VER DETALLES */}
                                                     <Button 
                                                         variant="outline-secondary" 
                                                         className="flex-grow-1"
@@ -217,33 +246,38 @@ const ProductsPage: React.FC = () => {
                                                         Ver
                                                     </Button>
 
-                                                    {/* BOTÓN 2: AGREGAR AL CARRITO (Tu botón original conservando estilos) */}
+                                                    {/* BOTÓN AGREGAR CON LÓGICA */}
                                                     <Button 
                                                         variant="outline-success" 
                                                         className="flex-grow-1"
-                                                        disabled={prod.stock <= 0}
+                                                        disabled={prod.stock <= 0 || addingId === prod.id}
+                                                        onClick={() => handleAddToCart(prod.id)}
                                                         style={{ 
                                                             fontWeight: 'bold', 
                                                             borderColor: '#2E8B57', 
                                                             color: prod.stock > 0 ? '#2E8B57' : 'grey' 
                                                         }}
                                                         onMouseOver={(e) => {
-                                                            if(prod.stock > 0) {
+                                                            if(prod.stock > 0 && addingId !== prod.id) {
                                                                 e.currentTarget.style.backgroundColor = '#2E8B57';
                                                                 e.currentTarget.style.color = 'white';
                                                             }
                                                         }}
                                                         onMouseOut={(e) => {
-                                                            if(prod.stock > 0) {
+                                                            if(prod.stock > 0 && addingId !== prod.id) {
                                                                 e.currentTarget.style.backgroundColor = 'transparent';
                                                                 e.currentTarget.style.color = '#2E8B57';
                                                             }
                                                         }}
                                                     >
                                                         {prod.stock > 0 ? (
-                                                            <>
-                                                                <CartPlus className="me-1" /> Agregar
-                                                            </>
+                                                            addingId === prod.id ? (
+                                                                <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" />
+                                                            ) : (
+                                                                <>
+                                                                    <CartPlus className="me-1" /> Agregar
+                                                                </>
+                                                            )
                                                         ) : (
                                                             'Agotado'
                                                         )}

@@ -47,7 +47,7 @@ const ContactPage: React.FC = () => {
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-            <Header cartItemCount={0} />
+            <Header />
 
             <Container className="my-5 flex-grow-1">
                 <div className="text-center mb-5">

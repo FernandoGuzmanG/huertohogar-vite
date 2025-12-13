@@ -1,21 +1,29 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Container, Row, Col, Image, Button, Badge, Form, Spinner, Modal, Alert } from 'react-bootstrap';
 import { useParams, useNavigate } from 'react-router-dom';
-import { CartPlus, StarFill, Star, ArrowLeft, GeoAlt, Truck, PencilSquare } from 'react-bootstrap-icons';
+import { CartPlus, StarFill, Star, ArrowLeft, GeoAlt, Truck, PencilSquare, CheckCircle } from 'react-bootstrap-icons'; 
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 
 // Servicios y Tipos
 import { productService } from '../services/productService';
 import { reviewService } from '../services/reviewService';
+import { cartService } from '../services/cartService'; 
 import type { Producto } from '../types/product';
 import type { Resena, ResenaEstadisticasDTO } from '../types/review';
 import { useAuth } from '../hooks/useAuth';
+import LoginToast from '../components/LoginToast'; 
+
+// --- IMPORTANTE: Importamos el hook del carrito para actualizar el Header ---
+import { useCart } from '../hooks/useCart'; 
 
 const ProductDetailPage: React.FC = () => {
     const { sku } = useParams<{ sku: string }>();
     const navigate = useNavigate();
     const { isAuthenticated } = useAuth();
+    
+    // Obtenemos la función para refrescar el contador del Header
+    const { refreshCart } = useCart(); 
 
     // Estado del Producto
     const [product, setProduct] = useState<Producto | null>(null);
@@ -26,23 +34,28 @@ const ProductDetailPage: React.FC = () => {
     const [reviews, setReviews] = useState<Resena[]>([]);
     const [stats, setStats] = useState<ResenaEstadisticasDTO>({ skuProducto: '', promedioCalificacion: 0, totalResenas: 0 });
     
-    // Estados para el Formulario de Reseña (Modal)
+    // Estados para el Formulario de Reseña
     const [showModal, setShowModal] = useState(false);
     const [newRating, setNewRating] = useState(5);
     const [newComment, setNewComment] = useState('');
     const [submittingReview, setSubmittingReview] = useState(false);
     const [reviewError, setReviewError] = useState<string | null>(null);
 
+    // Estados para el Carrito
+    const [addingToCart, setAddingToCart] = useState(false);
+    const [actionError, setActionError] = useState<string | null>(null);
+    const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+
+    const [showLoginAlert, setShowLoginAlert] = useState(false);
+
     // --- CARGA DE DATOS ---
     const fetchAllData = useCallback(async () => {
         if (!sku) return;
         setLoading(true);
         try {
-            // 1. Cargar Producto
             const productData = await productService.obtenerPorSku(sku);
             setProduct(productData);
 
-            // 2. Cargar Reseñas y Estadísticas en paralelo
             const [reviewsData, statsData] = await Promise.all([
                 reviewService.obtenerResenas(sku),
                 reviewService.obtenerEstadisticas(sku)
@@ -62,6 +75,41 @@ const ProductDetailPage: React.FC = () => {
         fetchAllData();
     }, [fetchAllData]);
 
+    // --- LÓGICA AGREGAR AL CARRITO ---
+    const handleAddToCart = async () => {
+        if (!sku) return;
+        
+        // 1. Validar autenticación
+        if (!isAuthenticated) {
+            setShowLoginAlert(true); // Mostrar alerta personalizada
+            return;
+        }
+
+        setAddingToCart(true);
+        setActionError(null);
+        setActionSuccess(null);
+
+        try {
+            // 2. Agregar al Backend
+            await cartService.agregarItem(sku, cantidad);
+            
+            // 3. ¡ACTUALIZAR EL HEADER GLOBAL!
+            await refreshCart(); 
+
+            setActionSuccess(`¡Agregaste ${cantidad} unidad(es) al carrito!`);
+            
+            // Limpiar mensaje después de 3 segundos
+            setTimeout(() => setActionSuccess(null), 3000);
+
+        } catch (error) {
+            // Manejar error (incluyendo Stock insuficiente 409)
+            const msg = error instanceof Error ? error.message : "Error al agregar al carrito";
+            setActionError(msg);
+        } finally {
+            setAddingToCart(false);
+        }
+    };
+
     // --- MANEJO DE NUEVA RESEÑA ---
     const handleSubmitReview = async () => {
         if (!sku) return;
@@ -75,11 +123,10 @@ const ProductDetailPage: React.FC = () => {
                 comentario: newComment
             });
             
-            // Éxito: Cerrar modal, limpiar y recargar datos
             setShowModal(false);
             setNewComment('');
             setNewRating(5);
-            // Recargamos solo las reseñas y stats para ver el cambio
+            
             const [reviewsData, statsData] = await Promise.all([
                 reviewService.obtenerResenas(sku),
                 reviewService.obtenerEstadisticas(sku)
@@ -131,9 +178,20 @@ const ProductDetailPage: React.FC = () => {
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-            <Header cartItemCount={0} />
+            {/* Header sin props, se conecta solo al contexto */}
+            <Header />
 
             <Container className="my-5 flex-grow-1">
+                {/* Alertas de Carrito */}
+                {actionError && <Alert variant="danger" onClose={() => setActionError(null)} dismissible>{actionError}</Alert>}
+                {actionSuccess && <Alert variant="success" onClose={() => setActionSuccess(null)} dismissible><CheckCircle className="me-2"/>{actionSuccess}</Alert>}
+
+                <LoginToast 
+                    show={showLoginAlert} 
+                    onClose={() => setShowLoginAlert(false)} 
+                    message="Inicia sesión para agregar este producto."
+                />
+                
                 <Button 
                     variant="link" 
                     className="mb-4 text-decoration-none" 
@@ -209,15 +267,23 @@ const ProductDetailPage: React.FC = () => {
                                 <Button 
                                     size="lg"
                                     style={{ backgroundColor: '#2E8B57', borderColor: '#2E8B57' }}
-                                    disabled={product.stock <= 0}
+                                    // Deshabilitar si no hay stock o si se está agregando
+                                    disabled={product.stock <= 0 || addingToCart}
                                     className="flex-grow-1"
+                                    onClick={handleAddToCart} 
                                 >
-                                    {product.stock > 0 ? (
+                                    {/* Lógica Visual del Botón */}
+                                    {product.stock <= 0 ? (
+                                        'Agotado'
+                                    ) : addingToCart ? (
+                                        <>
+                                            <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" className="me-2"/>
+                                            Agregando...
+                                        </>
+                                    ) : (
                                         <>
                                             <CartPlus className="me-2" /> Agregar al Carrito
                                         </>
-                                    ) : (
-                                        'Agotado'
                                     )}
                                 </Button>
                             </div>
@@ -226,10 +292,9 @@ const ProductDetailPage: React.FC = () => {
                 </Row>
 
                 <hr className="my-5" />
-
-                {/* --- SECCIÓN RESEÑAS CONECTADA --- */}
+                
+                {/* --- SECCIÓN RESEÑAS --- */}
                 <Row>
-                    {/* Columna Izquierda: Resumen Estadístico */}
                     <Col lg={4} className="mb-4">
                         <div className="p-4 rounded" style={{ backgroundColor: '#F7F7F7' }}>
                             <h4 style={{ fontFamily: 'Playfair Display', color: '#8B4513' }}>Opiniones de Clientes</h4>
@@ -246,7 +311,6 @@ const ProductDetailPage: React.FC = () => {
                         </div>
                     </Col>
 
-                    {/* Columna Derecha: Lista y Botón */}
                     <Col lg={8}>
                         <div className="d-flex justify-content-between align-items-center mb-4">
                             <h4 style={{ fontFamily: 'Playfair Display', color: '#333' }}>Reseñas ({stats.totalResenas})</h4>
@@ -265,13 +329,11 @@ const ProductDetailPage: React.FC = () => {
                             )}
                         </div>
 
-                        {/* LISTA DE RESEÑAS REALES */}
                         <div className="review-list">
                             {reviews.length > 0 ? (
                                 reviews.map((review) => (
                                     <div key={review.id} className="mb-4 pb-4 border-bottom">
                                         <div className="d-flex justify-content-between mb-2">
-                                            {/* Como no tenemos nombre de usuario en el modelo Resena, mostramos el ID */}
                                             <h6 className="fw-bold mb-0">{review.nombreUsuario}</h6>
                                             <small className="text-muted">{formatDate(review.fechaCreacion)}</small>
                                         </div>

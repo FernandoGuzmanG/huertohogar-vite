@@ -11,7 +11,7 @@ const Footer: React.FC = () => {
             {/* Nota: h5 toma el color blanco definido en CSS .footer-custom h5 */}
             <h5>HuertoHogar</h5>
             <p>&copy; {new Date().getFullYear()} Todos los derechos reservados.</p>
-            <p>Hecho con amor y React.</p>
+            <p>Hecho con amor.</p>
           </Col>
 
           {/* Columna 2: Enlaces rápidos */}

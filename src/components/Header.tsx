@@ -1,14 +1,14 @@
 import React from 'react';
-import { Navbar, Nav, Container, Button, NavDropdown } from 'react-bootstrap';
+import { Navbar, Nav, Container, Button, NavDropdown, Badge } from 'react-bootstrap';
 import { Cart3, PersonCircle } from 'react-bootstrap-icons';
-import { useAuth } from '../hooks/useAuth'; // Importación correcta del hook
+import { useAuth } from '../hooks/useAuth'; 
+import { useCart } from '../hooks/useCart'; // <--- NUEVO IMPORT (desde hooks)
 
-interface HeaderProps {
-  cartItemCount: number;
-}
-
-const Header: React.FC<HeaderProps> = ({ cartItemCount }) => {
+const Header: React.FC = () => {
   const { isAuthenticated, user, logout } = useAuth();
+  
+  // Conectamos con el contexto del carrito para obtener el número real
+  const { count } = useCart(); 
 
   return (
     <Navbar expand="lg" className="navbar-custom">
@@ -36,7 +36,7 @@ const Header: React.FC<HeaderProps> = ({ cartItemCount }) => {
                     title={
                         <span className="text-white fw-bold d-flex align-items-center">
                             <PersonCircle className="me-2" size={20}/>
-                            {/* Mostramos el correo o nombre del token */}
+                            {/* Mostramos nombre o parte del correo */}
                             Hola, {user.sub.split('@')[0]} 
                         </span>
                     } 
@@ -62,10 +62,22 @@ const Header: React.FC<HeaderProps> = ({ cartItemCount }) => {
                 </>
             )}
 
-            {/* CARRITO */}
-            <Nav.Link href="/carrito" className="nav-link-custom d-flex align-items-center ms-3">
+            {/* CARRITO CONECTADO AL GLOBAL */}
+            <Nav.Link href="/carrito" className="nav-link-custom d-flex align-items-center ms-3 position-relative">
               <Cart3 size={20} className="me-1" />
-              Carrito ({cartItemCount})
+              Carrito
+              
+              {/* Badge (Burbuja) Condicional: Solo aparece si hay items */}
+              {count >= 0 && (
+                  <Badge 
+                    bg="success" 
+                    pill 
+                    className="ms-1"
+                    style={{ fontSize: '0.75rem' }}
+                  >
+                    {count}
+                  </Badge>
+              )}
             </Nav.Link>
           </Nav>
         </Navbar.Collapse>

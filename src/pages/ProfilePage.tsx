@@ -138,7 +138,7 @@ const ProfilePage: React.FC = () => {
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-            <Header cartItemCount={0} />
+            <Header />
             
             <Container className="my-5 flex-grow-1">
                 <h2 className="mb-4 text-center" style={{fontFamily: 'Playfair Display', color: '#8B4513'}}>Mi Perfil</h2>

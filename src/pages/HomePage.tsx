@@ -14,7 +14,6 @@ import type { Producto } from '../types/product';
 const HomePage: React.FC = () => {
   // Estado para los productos destacados
   const [featuredProducts, setFeaturedProducts] = useState<Producto[]>([]);
-  const initialCartCount = 0; 
 
   // Efecto para cargar productos reales al montar la página
   useEffect(() => {
@@ -41,7 +40,7 @@ const HomePage: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      <Header cartItemCount={initialCartCount} />
+      <Header/>
       
       <main style={{ flex: 1 }}>
         <HeroSection />
