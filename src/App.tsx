@@ -8,7 +8,8 @@ import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import ProductsPage from './pages/ProductsPage'; 
 import ProfilePage from './pages/ProfilePage'; 
-import ProductDetailPage from './pages/ProductDetailPage'; 
+import ProductDetailPage from './pages/ProductDetailPage';
+import ContactPage from './pages/ContactPage';
 
 
 function App() {
@@ -33,6 +34,8 @@ function App() {
         {/* Rutas de Tienda */}
         <Route path="/productos" element={<ProductsPage />} />
         <Route path="/producto/:sku" element={<ProductDetailPage />} />
+        <Route path="/contacto" element={<ContactPage />} />
+        
         
         
         {/* Ruta para manejar URLs no encontradas (Opcional, pero recomendado) */}

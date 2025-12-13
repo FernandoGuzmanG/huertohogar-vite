@@ -1,12 +1,15 @@
-import React, { useEffect, useState } from 'react';
-import { Container, Row, Col, Image, Button, Badge, Form, Spinner, ProgressBar } from 'react-bootstrap';
+import React, { useEffect, useState, useCallback } from 'react';
+import { Container, Row, Col, Image, Button, Badge, Form, Spinner, Modal, Alert } from 'react-bootstrap';
 import { useParams, useNavigate } from 'react-router-dom';
-import { CartPlus, StarFill, Star, ArrowLeft, GeoAlt, Truck } from 'react-bootstrap-icons';
+import { CartPlus, StarFill, Star, ArrowLeft, GeoAlt, Truck, PencilSquare } from 'react-bootstrap-icons';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+
+// Servicios y Tipos
 import { productService } from '../services/productService';
+import { reviewService } from '../services/reviewService';
 import type { Producto } from '../types/product';
-// Importamos useAuth por si queremos mostrar el formulario de reseña solo a logueados visualmente
+import type { Resena, ResenaEstadisticasDTO } from '../types/review';
 import { useAuth } from '../hooks/useAuth';
 
 const ProductDetailPage: React.FC = () => {
@@ -14,46 +17,95 @@ const ProductDetailPage: React.FC = () => {
     const navigate = useNavigate();
     const { isAuthenticated } = useAuth();
 
+    // Estado del Producto
     const [product, setProduct] = useState<Producto | null>(null);
     const [loading, setLoading] = useState(true);
     const [cantidad, setCantidad] = useState(1);
 
-    // --- ESTADO DUMMY PARA RESEÑAS (Para maquetación) ---
-    // Cuando integres el microservicio, esto vendrá de resenaService.obtenerEstadisticasPorProducto(sku)
-    const mockStats = {
-        promedio: 4.5,
-        totalResenas: 12
-    };
+    // Estados de Reseñas
+    const [reviews, setReviews] = useState<Resena[]>([]);
+    const [stats, setStats] = useState<ResenaEstadisticasDTO>({ skuProducto: '', promedioCalificacion: 0, totalResenas: 0 });
+    
+    // Estados para el Formulario de Reseña (Modal)
+    const [showModal, setShowModal] = useState(false);
+    const [newRating, setNewRating] = useState(5);
+    const [newComment, setNewComment] = useState('');
+    const [submittingReview, setSubmittingReview] = useState(false);
+    const [reviewError, setReviewError] = useState<string | null>(null);
 
-    // Cuando integres, esto vendrá de resenaService.obtenerResenasPorProducto(sku)
-    const mockReviews = [
-        { id: 1, usuario: 'Juan Pérez', calificacion: 5, comentario: '¡Excelente calidad! Muy frescas.', fecha: '2023-10-01' },
-        { id: 2, usuario: 'María G.', calificacion: 4, comentario: 'Buen producto, pero el envío demoró un poco.', fecha: '2023-10-05' }
-    ];
+    // --- CARGA DE DATOS ---
+    const fetchAllData = useCallback(async () => {
+        if (!sku) return;
+        setLoading(true);
+        try {
+            // 1. Cargar Producto
+            const productData = await productService.obtenerPorSku(sku);
+            setProduct(productData);
 
-    useEffect(() => {
-        const fetchProduct = async () => {
-            if (!sku) return;
-            setLoading(true);
-            try {
-                const data = await productService.obtenerPorSku(sku);
-                setProduct(data);
-            } catch (error) {
-                console.error("Error cargando producto", error);
-                // Si falla, podrías redirigir o mostrar error
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchProduct();
-        // TODO: INTEGRACIÓN RESEÑAS -> Aquí llamarás a cargarResenas(sku) y cargarEstadisticas(sku)
+            // 2. Cargar Reseñas y Estadísticas en paralelo
+            const [reviewsData, statsData] = await Promise.all([
+                reviewService.obtenerResenas(sku),
+                reviewService.obtenerEstadisticas(sku)
+            ]);
+
+            setReviews(reviewsData);
+            setStats(statsData);
+
+        } catch (error) {
+            console.error("Error cargando datos", error);
+        } finally {
+            setLoading(false);
+        }
     }, [sku]);
 
+    useEffect(() => {
+        fetchAllData();
+    }, [fetchAllData]);
+
+    // --- MANEJO DE NUEVA RESEÑA ---
+    const handleSubmitReview = async () => {
+        if (!sku) return;
+        setSubmittingReview(true);
+        setReviewError(null);
+
+        try {
+            await reviewService.registrarResena({
+                skuProducto: sku,
+                calificacion: newRating,
+                comentario: newComment
+            });
+            
+            // Éxito: Cerrar modal, limpiar y recargar datos
+            setShowModal(false);
+            setNewComment('');
+            setNewRating(5);
+            // Recargamos solo las reseñas y stats para ver el cambio
+            const [reviewsData, statsData] = await Promise.all([
+                reviewService.obtenerResenas(sku),
+                reviewService.obtenerEstadisticas(sku)
+            ]);
+            setReviews(reviewsData);
+            setStats(statsData);
+
+        } catch (err) {
+            const message = err instanceof Error ? err.message : 'Error al enviar reseña.';
+            setReviewError(message);
+        } finally {
+            setSubmittingReview(false);
+        }
+    };
+
+    // --- UTILIDADES ---
     const formatoPeso = (valor: number) => {
         return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(valor);
     };
 
-    // Función auxiliar para renderizar estrellas
+    const formatDate = (isoString: string) => {
+        if (!isoString) return '';
+        const date = new Date(isoString);
+        return date.toLocaleDateString('es-CL');
+    };
+
     const renderStars = (rating: number) => {
         return [...Array(5)].map((_, i) => (
             i < rating ? <StarFill key={i} className="text-warning small me-1" /> : <Star key={i} className="text-muted small me-1" />
@@ -82,7 +134,6 @@ const ProductDetailPage: React.FC = () => {
             <Header cartItemCount={0} />
 
             <Container className="my-5 flex-grow-1">
-                {/* Botón Volver */}
                 <Button 
                     variant="link" 
                     className="mb-4 text-decoration-none" 
@@ -92,9 +143,8 @@ const ProductDetailPage: React.FC = () => {
                     <ArrowLeft className="me-2" /> Volver al catálogo
                 </Button>
 
-                {/* --- SECCIÓN DETALLE DEL PRODUCTO --- */}
+                {/* --- DETALLE DEL PRODUCTO --- */}
                 <Row className="mb-5">
-                    {/* Columna Imagen */}
                     <Col md={6} className="mb-4 mb-md-0">
                         <div style={{ 
                             borderRadius: '15px', 
@@ -115,7 +165,6 @@ const ProductDetailPage: React.FC = () => {
                         </div>
                     </Col>
 
-                    {/* Columna Información */}
                     <Col md={6}>
                         <div className="ps-md-4">
                             <Badge bg="warning" text="dark" className="mb-2 px-3 py-2 rounded-pill">
@@ -128,9 +177,9 @@ const ProductDetailPage: React.FC = () => {
 
                             <div className="d-flex align-items-center mb-3">
                                 <div className="me-2 d-flex">
-                                    {renderStars(Math.round(mockStats.promedio))} {/* Mock Rating */}
+                                    {renderStars(Math.round(stats.promedioCalificacion || 0))}
                                 </div>
-                                <span className="text-muted small">({mockStats.totalResenas} opiniones)</span>
+                                <span className="text-muted small">({stats.totalResenas} opiniones)</span>
                             </div>
 
                             <h2 className="mb-3" style={{ color: '#2E8B57', fontWeight: 'bold' }}>
@@ -147,7 +196,6 @@ const ProductDetailPage: React.FC = () => {
                                 <p><Truck className="me-2 text-success" /> Despacho disponible en 24h</p>
                             </div>
 
-                            {/* Selector de Cantidad y Agregar */}
                             <div className="d-flex align-items-center mb-4">
                                 <Form.Control 
                                     type="number" 
@@ -173,84 +221,123 @@ const ProductDetailPage: React.FC = () => {
                                     )}
                                 </Button>
                             </div>
-                            
-                            <small className="text-muted">Stock disponible: {product.stock} {product.unidad}</small>
                         </div>
                     </Col>
                 </Row>
 
                 <hr className="my-5" />
 
-                {/* --- SECCIÓN RESEÑAS (ESPACIO PARA DESARROLLO FUTURO) --- */}
+                {/* --- SECCIÓN RESEÑAS CONECTADA --- */}
                 <Row>
+                    {/* Columna Izquierda: Resumen Estadístico */}
                     <Col lg={4} className="mb-4">
                         <div className="p-4 rounded" style={{ backgroundColor: '#F7F7F7' }}>
                             <h4 style={{ fontFamily: 'Playfair Display', color: '#8B4513' }}>Opiniones de Clientes</h4>
                             
                             <div className="text-center my-4">
                                 <h1 style={{ fontSize: '4rem', color: '#2E8B57', fontWeight: 'bold', marginBottom: 0 }}>
-                                    {mockStats.promedio}
+                                    {stats.promedioCalificacion ? stats.promedioCalificacion.toFixed(1) : '0.0'}
                                 </h1>
                                 <div className="mb-2">
-                                    {renderStars(Math.round(mockStats.promedio))}
+                                    {renderStars(Math.round(stats.promedioCalificacion || 0))}
                                 </div>
-                                <p className="text-muted">Basado en {mockStats.totalResenas} reseñas</p>
+                                <p className="text-muted">Basado en {stats.totalResenas} reseñas</p>
                             </div>
-
-                            {/* Barras de progreso simuladas */}
-                            {[5, 4, 3, 2, 1].map((star) => (
-                                <div key={star} className="d-flex align-items-center mb-2">
-                                    <span className="me-2 small text-muted">{star} <StarFill className="text-warning mb-1" style={{fontSize: '10px'}}/></span>
-                                    <ProgressBar 
-                                        now={star === 5 ? 70 : star === 4 ? 20 : 5} 
-                                        variant="success" 
-                                        style={{ height: '6px', flexGrow: 1 }} 
-                                    />
-                                </div>
-                            ))}
                         </div>
                     </Col>
 
+                    {/* Columna Derecha: Lista y Botón */}
                     <Col lg={8}>
                         <div className="d-flex justify-content-between align-items-center mb-4">
-                            <h4 style={{ fontFamily: 'Playfair Display', color: '#333' }}>Reseñas ({mockStats.totalResenas})</h4>
+                            <h4 style={{ fontFamily: 'Playfair Display', color: '#333' }}>Reseñas ({stats.totalResenas})</h4>
                             
                             {isAuthenticated ? (
-                                <Button style={{ backgroundColor: '#FFD700', border: 'none', color: '#000', fontWeight: 'bold' }}>
-                                    Escribir una reseña
+                                <Button 
+                                    style={{ backgroundColor: '#FFD700', border: 'none', color: '#000', fontWeight: 'bold' }}
+                                    onClick={() => setShowModal(true)}
+                                >
+                                    <PencilSquare className="me-2"/> Escribir una reseña
                                 </Button>
                             ) : (
-                                <small className="text-muted">Inicia sesión para opinar</small>
+                                <small className="text-muted border p-2 rounded">
+                                    <a href="/login" style={{color: '#2E8B57', fontWeight: 'bold'}}>Inicia sesión</a> para opinar
+                                </small>
                             )}
                         </div>
 
-                        {/* --- LISTA DE RESEÑAS (MOCKUP) --- */}
+                        {/* LISTA DE RESEÑAS REALES */}
                         <div className="review-list">
-                            {mockReviews.map((review) => (
-                                <div key={review.id} className="mb-4 pb-4 border-bottom">
-                                    <div className="d-flex justify-content-between mb-2">
-                                        <h6 className="fw-bold mb-0">{review.usuario}</h6>
-                                        <small className="text-muted">{review.fecha}</small>
+                            {reviews.length > 0 ? (
+                                reviews.map((review) => (
+                                    <div key={review.id} className="mb-4 pb-4 border-bottom">
+                                        <div className="d-flex justify-content-between mb-2">
+                                            {/* Como no tenemos nombre de usuario en el modelo Resena, mostramos el ID */}
+                                            <h6 className="fw-bold mb-0">{review.nombreUsuario}</h6>
+                                            <small className="text-muted">{formatDate(review.fechaCreacion)}</small>
+                                        </div>
+                                        <div className="mb-2">
+                                            {renderStars(review.calificacion)}
+                                        </div>
+                                        <p className="text-muted mb-0">{review.comentario}</p>
                                     </div>
-                                    <div className="mb-2">
-                                        {renderStars(review.calificacion)}
-                                    </div>
-                                    <p className="text-muted mb-0">{review.comentario}</p>
-                                </div>
-                            ))}
-                            
-                            {/* Aquí iría la lógica de paginación o "Ver más" */}
+                                ))
+                            ) : (
+                                <p className="text-muted text-center py-4">Aún no hay reseñas para este producto. ¡Sé el primero!</p>
+                            )}
                         </div>
-
-                        {/* TODO: INTEGRACIÓN FUTURA CON MICROSERVICIO RESEÑAS
-                            1. Crear componente ReviewForm que use POST /api/resenas/registrar
-                            2. Reemplazar mockReviews con datos de GET /api/resenas/{sku}
-                            3. Reemplazar mockStats con datos de GET /api/resenas/{sku}/estadisticas
-                        */}
                     </Col>
                 </Row>
-
             </Container>
+
+            {/* --- MODAL PARA ESCRIBIR RESEÑA --- */}
+            <Modal show={showModal} onHide={() => setShowModal(false)} centered>
+                <Modal.Header closeButton className="card-header-custom">
+                    <Modal.Title style={{fontFamily: 'Playfair Display'}}>Escribir Reseña</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    {reviewError && <Alert variant="danger">{reviewError}</Alert>}
+                    
+                    <Form>
+                        <Form.Group className="mb-3">
+                            <Form.Label>Calificación</Form.Label>
+                            <div className="d-flex gap-2">
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                    <StarFill 
+                                        key={star} 
+                                        size={24} 
+                                        className={star <= newRating ? "text-warning" : "text-muted"} 
+                                        style={{cursor: 'pointer'}}
+                                        onClick={() => setNewRating(star)}
+                                    />
+                                ))}
+                            </div>
+                        </Form.Group>
+
+                        <Form.Group className="mb-3">
+                            <Form.Label>Tu Opinión</Form.Label>
+                            <Form.Control 
+                                as="textarea" 
+                                rows={3} 
+                                placeholder="Cuéntanos qué te pareció el producto..."
+                                value={newComment}
+                                onChange={(e) => setNewComment(e.target.value)}
+                            />
+                        </Form.Group>
+                    </Form>
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="secondary" onClick={() => setShowModal(false)}>
+                        Cancelar
+                    </Button>
+                    <Button 
+                        style={{ backgroundColor: '#2E8B57', border: 'none' }}
+                        onClick={handleSubmitReview}
+                        disabled={submittingReview || !newComment.trim()}
+                    >
+                        {submittingReview ? 'Enviando...' : 'Publicar Reseña'}
+                    </Button>
+                </Modal.Footer>
+            </Modal>
 
             <Footer />
         </div>
