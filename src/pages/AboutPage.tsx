@@ -24,7 +24,7 @@ const AboutPage: React.FC = () => {
             {/* --- HERO SECTION --- */}
             <div style={{ backgroundColor: '#2E8B57', color: 'white', padding: '60px 0', textAlign: 'center' }}>
                 <Container>
-                    <h1 style={{ fontFamily: 'Playfair Display', fontWeight: 'bold', fontSize: '3rem' }}>
+                    <h1 style={{ fontFamily: 'Playfair Display', fontWeight: 'bold', fontSize: '3rem', color: 'white' }}>
                         Del Campo al Hogar
                     </h1>
                     <p style={{ fontSize: '1.2rem', fontFamily: 'Montserrat', maxWidth: '800px', margin: '0 auto' }}>

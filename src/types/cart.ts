@@ -4,8 +4,8 @@ export interface ItemCarrito {
     cantidad: number;
     montoTotal: number;
     nombreProducto: string;
-    urlImagen: string;
-    unidadMedida: string;
+    imagen: string;
+    unidad: string;
     precioUnitarioActual: number;
 }
 

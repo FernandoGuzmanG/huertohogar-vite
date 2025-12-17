@@ -5,9 +5,11 @@ import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { cartService } from '../services/cartService';
-import { orderService } from '../services/orderService'; // <--- Servicio Corregido
+import { orderService } from '../services/orderService';
+import { userService } from '../services/userService'; // <--- IMPORTAMOS userService
 import type { Carrito, ItemCarrito } from '../types/cart';
 import { useCart } from '../hooks/useCart';
+import { useAuth } from '../hooks/useAuth'; // <--- IMPORTAMOS useAuth
 
 // --- SUB-COMPONENTE: CART ITEM ---
 interface CartItemProps {
@@ -59,8 +61,8 @@ const CartItem: React.FC<CartItemProps> = ({ item, updatingSku, onUpdateQuantity
                 <Row className="align-items-center">
                     <Col md={2} xs={3}>
                         <div style={{ height: '80px', width: '80px', overflow: 'hidden', borderRadius: '8px', backgroundColor: '#f8f9fa' }}>
-                            {item.urlImagen ? (
-                                <Image src={item.urlImagen} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            {item.imagen ? (
+                                <Image src={item.imagen} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                             ) : (
                                 <span className="small text-muted d-flex align-items-center justify-content-center h-100">Sin img</span>
                             )}
@@ -69,7 +71,7 @@ const CartItem: React.FC<CartItemProps> = ({ item, updatingSku, onUpdateQuantity
                     <Col md={4} xs={9}>
                         <h5 style={{ fontWeight: 'bold', color: '#333' }}>{item.nombreProducto}</h5>
                         <p className="text-muted small mb-0">
-                            {formatoPeso(item.precioUnitarioActual)} / {item.unidadMedida}
+                            {formatoPeso(item.precioUnitarioActual)} / {item.unidad}
                         </p>
                     </Col>
                     <Col md={3} xs={12} className="mt-3 mt-md-0">
@@ -120,6 +122,7 @@ const CartItem: React.FC<CartItemProps> = ({ item, updatingSku, onUpdateQuantity
 const CartPage: React.FC = () => {
     const navigate = useNavigate();
     const { refreshCart } = useCart();
+    const { isAuthenticated } = useAuth(); // <--- Obtenemos estado de autenticación
     
     const [carrito, setCarrito] = useState<Carrito | null>(null);
     const [loading, setLoading] = useState(true);
@@ -132,6 +135,7 @@ const CartPage: React.FC = () => {
     const [showModal, setShowModal] = useState(false);
     const [orderId, setOrderId] = useState<number | null>(null);
 
+    // 1. Cargar Carrito
     const cargarCarrito = async () => {
         setLoading(true);
         try {
@@ -147,6 +151,25 @@ const CartPage: React.FC = () => {
     useEffect(() => {
         cargarCarrito();
     }, []);
+
+    // 2. Pre-cargar Dirección del Usuario
+    useEffect(() => {
+        if (isAuthenticated) {
+            const fetchAddress = async () => {
+                try {
+                    const profile = await userService.obtenerPerfil();
+                    if (profile.direccionEntrega) {
+                        setDireccion(profile.direccionEntrega);
+                    }
+                } catch (error) {
+                    console.error("No se pudo cargar la dirección predeterminada", error);
+                    // No bloqueamos la UI ni mostramos error al usuario, 
+                    // simplemente el campo quedará vacío para que lo llenen manualmente.
+                }
+            };
+            fetchAddress();
+        }
+    }, [isAuthenticated]); // Se ejecuta cuando el usuario se loguea/entra
 
     const handleUpdateQuantity = async (sku: string, nuevaCantidad: number) => {
         if (nuevaCantidad < 1) return;
@@ -194,25 +217,19 @@ const CartPage: React.FC = () => {
         setErrorMsg(null);
 
         try {
-            // Llamamos al servicio (POST /api/pedidos?direccion=...)
             const pedidoCreado = await orderService.crearPedido(direccion);
 
-            // Si llegamos aquí, el pedido se creó (Status 201/200)
             setOrderId(pedidoCreado.id);
             setShowModal(true);
             
-            // Limpiamos la UI
             await refreshCart();
             setCarrito(null);
             setDireccion("");
             
         } catch (error) {
             console.error("Error checkout:", error);
-            
             const err = error as { response?: { data?: { message?: string } } };
-
             const backendMsg = err.response?.data?.message || "Hubo un error al procesar tu pedido. Intenta nuevamente.";
-            
             setErrorMsg(backendMsg);
         } finally {
             setIsProcessing(false);
