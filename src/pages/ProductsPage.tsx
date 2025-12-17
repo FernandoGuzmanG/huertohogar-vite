@@ -1,19 +1,18 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Container, Row, Col, Card, Button, Form, InputGroup, Spinner, Badge, Alert } from 'react-bootstrap';
+import { Container, Row, Col, Card, Button, Form, InputGroup, Spinner, Badge, Alert, Toast, ToastContainer } from 'react-bootstrap';
 import { Search, CartPlus, GeoAlt, XCircle, CheckCircle } from 'react-bootstrap-icons';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { productService } from '../services/productService';
-import { cartService } from '../services/cartService'; // Importamos cartService
-import { useAuth } from '../hooks/useAuth'; // Importamos useAuth
+import { cartService } from '../services/cartService'; 
+import { useAuth } from '../hooks/useAuth'; 
 import type { Producto } from '../types/product';
 import LoginToast from '../components/LoginToast';
 import { useCart } from '../hooks/useCart'; 
 
-
 const ProductsPage: React.FC = () => {
     const { refreshCart } = useCart(); 
-    const { isAuthenticated } = useAuth(); // Obtenemos estado de autenticación
+    const { isAuthenticated } = useAuth(); 
 
     const [productos, setProductos] = useState<Producto[]>([]);
     const [loading, setLoading] = useState(true);
@@ -23,10 +22,14 @@ const ProductsPage: React.FC = () => {
 
     const [showLoginAlert, setShowLoginAlert] = useState(false);
 
-    // --- NUEVOS ESTADOS PARA CARRITO EN LISTADO ---
-    const [addingId, setAddingId] = useState<string | null>(null); // Para mostrar spinner en la tarjeta específica
+    // --- ESTADOS PARA CARRITO ---
+    const [addingId, setAddingId] = useState<string | null>(null); 
     const [globalError, setGlobalError] = useState<string | null>(null);
-    const [globalSuccess, setGlobalSuccess] = useState<string | null>(null);
+    
+    // --- NUEVO: ESTADOS PARA EL TOAST FLOTANTE ---
+    const [showToast, setShowToast] = useState(false);
+    const [toastMessage, setToastMessage] = useState('');
+    const [toastVariant, setToastVariant] = useState<'success' | 'danger'>('success');
 
     const categorias = [
         { id: 1, nombre: 'Frutas Frescas' },
@@ -75,22 +78,24 @@ const ProductsPage: React.FC = () => {
             return;
         }
 
-        setAddingId(sku); // Activa spinner en esa tarjeta
+        setAddingId(sku); 
         setGlobalError(null);
-        setGlobalSuccess(null);
 
         try {
-            // Agregamos 1 unidad por defecto desde el listado
             await cartService.agregarItem(sku, 1);
             await refreshCart();
-            setGlobalSuccess(`¡Producto agregado al carrito!`);
-            setTimeout(() => setGlobalSuccess(null), 3000);
+            
+            // --- NUEVO: MOSTRAR TOAST FLOTANTE ---
+            setToastMessage('¡Producto agregado al carrito!');
+            setToastVariant('success');
+            setShowToast(true);
             
         } catch (error) {
             const msg = error instanceof Error ? error.message : "Error al agregar";
-            setGlobalError(msg);
-            // Si es un error, hacemos scroll arriba para que vea la alerta
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            // Si hay error, mostramos toast rojo
+            setToastMessage(msg);
+            setToastVariant('danger');
+            setShowToast(true);
         } finally {
             setAddingId(null);
         }
@@ -105,9 +110,8 @@ const ProductsPage: React.FC = () => {
             <Header />
 
             <Container className="my-5 flex-grow-1">
-                {/* ALERTAS GLOBALES */}
+                {/* ALERTAS GLOBALES (Mantenemos solo error global si es crítico, éxito ahora es Toast) */}
                 {globalError && <Alert variant="danger" onClose={() => setGlobalError(null)} dismissible>{globalError}</Alert>}
-                {globalSuccess && <Alert variant="success" onClose={() => setGlobalSuccess(null)} dismissible><CheckCircle className="me-2"/>{globalSuccess}</Alert>}
                 
                 <LoginToast 
                     show={showLoginAlert} 
@@ -299,6 +303,26 @@ const ProductsPage: React.FC = () => {
                     </Row>
                 )}
             </Container>
+
+            {/* --- NUEVO: TOAST FLOTANTE ABAJO A LA DERECHA --- */}
+            <ToastContainer className="p-3" position="bottom-end" style={{ zIndex: 9999, position: 'fixed' }}>
+                <Toast 
+                    onClose={() => setShowToast(false)} 
+                    show={showToast} 
+                    delay={3000} 
+                    autohide 
+                    bg={toastVariant}
+                >
+                    <Toast.Header closeButton={true}>
+                        {toastVariant === 'success' ? <CheckCircle className="me-2 text-success"/> : <XCircle className="me-2 text-danger"/>}
+                        <strong className="me-auto">{toastVariant === 'success' ? '¡Éxito!' : 'Atención'}</strong>
+                        <small>Ahora</small>
+                    </Toast.Header>
+                    <Toast.Body className="text-white">
+                        {toastMessage}
+                    </Toast.Body>
+                </Toast>
+            </ToastContainer>
 
             <Footer />
         </div>

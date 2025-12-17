@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Container, Row, Col, Image, Button, Badge, Form, Spinner, Modal, Alert } from 'react-bootstrap';
+import { Container, Row, Col, Image, Button, Badge, Form, Spinner, Modal, Alert, Toast, ToastContainer } from 'react-bootstrap';
 import { useParams, useNavigate } from 'react-router-dom';
-import { CartPlus, StarFill, Star, ArrowLeft, GeoAlt, Truck, PencilSquare, CheckCircle } from 'react-bootstrap-icons'; 
+import { CartPlus, StarFill, Star, ArrowLeft, GeoAlt, Truck, PencilSquare, CheckCircle, XCircle } from 'react-bootstrap-icons'; 
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 
@@ -14,7 +14,6 @@ import type { Resena, ResenaEstadisticasDTO } from '../types/review';
 import { useAuth } from '../hooks/useAuth';
 import LoginToast from '../components/LoginToast'; 
 
-// --- IMPORTANTE: Importamos el hook del carrito para actualizar el Header ---
 import { useCart } from '../hooks/useCart'; 
 
 const ProductDetailPage: React.FC = () => {
@@ -22,7 +21,6 @@ const ProductDetailPage: React.FC = () => {
     const navigate = useNavigate();
     const { isAuthenticated } = useAuth();
     
-    // Obtenemos la función para refrescar el contador del Header
     const { refreshCart } = useCart(); 
 
     // Estado del Producto
@@ -43,8 +41,11 @@ const ProductDetailPage: React.FC = () => {
 
     // Estados para el Carrito
     const [addingToCart, setAddingToCart] = useState(false);
-    const [actionError, setActionError] = useState<string | null>(null);
-    const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+    
+    // --- NUEVO: ESTADOS PARA EL TOAST FLOTANTE ---
+    const [showToast, setShowToast] = useState(false);
+    const [toastMessage, setToastMessage] = useState('');
+    const [toastVariant, setToastVariant] = useState<'success' | 'danger'>('success');
 
     const [showLoginAlert, setShowLoginAlert] = useState(false);
 
@@ -81,13 +82,11 @@ const ProductDetailPage: React.FC = () => {
         
         // 1. Validar autenticación
         if (!isAuthenticated) {
-            setShowLoginAlert(true); // Mostrar alerta personalizada
+            setShowLoginAlert(true); 
             return;
         }
 
         setAddingToCart(true);
-        setActionError(null);
-        setActionSuccess(null);
 
         try {
             // 2. Agregar al Backend
@@ -96,15 +95,19 @@ const ProductDetailPage: React.FC = () => {
             // 3. ¡ACTUALIZAR EL HEADER GLOBAL!
             await refreshCart(); 
 
-            setActionSuccess(`¡Agregaste ${cantidad} unidad(es) al carrito!`);
-            
-            // Limpiar mensaje después de 3 segundos
-            setTimeout(() => setActionSuccess(null), 3000);
+            // --- NUEVO: MOSTRAR TOAST FLOTANTE DE ÉXITO ---
+            setToastMessage(`¡Agregaste ${cantidad} unidad(es) al carrito!`);
+            setToastVariant('success');
+            setShowToast(true);
 
         } catch (error) {
-            // Manejar error (incluyendo Stock insuficiente 409)
+            // Manejar error (incluyendo Stock insuficiente)
             const msg = error instanceof Error ? error.message : "Error al agregar al carrito";
-            setActionError(msg);
+            
+            // --- NUEVO: MOSTRAR TOAST FLOTANTE DE ERROR ---
+            setToastMessage(msg);
+            setToastVariant('danger');
+            setShowToast(true);
         } finally {
             setAddingToCart(false);
         }
@@ -182,9 +185,7 @@ const ProductDetailPage: React.FC = () => {
             <Header />
 
             <Container className="my-5 flex-grow-1">
-                {/* Alertas de Carrito */}
-                {actionError && <Alert variant="danger" onClose={() => setActionError(null)} dismissible>{actionError}</Alert>}
-                {actionSuccess && <Alert variant="success" onClose={() => setActionSuccess(null)} dismissible><CheckCircle className="me-2"/>{actionSuccess}</Alert>}
+                {/* Se eliminaron las Alerts estáticas de aquí (actionSuccess/actionError) */}
 
                 <LoginToast 
                     show={showLoginAlert} 
@@ -400,6 +401,26 @@ const ProductDetailPage: React.FC = () => {
                     </Button>
                 </Modal.Footer>
             </Modal>
+
+            {/* --- NUEVO: TOAST FLOTANTE ABAJO A LA DERECHA --- */}
+            <ToastContainer className="p-3" position="bottom-end" style={{ zIndex: 9999, position: 'fixed' }}>
+                <Toast 
+                    onClose={() => setShowToast(false)} 
+                    show={showToast} 
+                    delay={3000} 
+                    autohide 
+                    bg={toastVariant}
+                >
+                    <Toast.Header closeButton={true}>
+                        {toastVariant === 'success' ? <CheckCircle className="me-2 text-success"/> : <XCircle className="me-2 text-danger"/>}
+                        <strong className="me-auto">{toastVariant === 'success' ? '¡Éxito!' : 'Atención'}</strong>
+                        <small>Ahora</small>
+                    </Toast.Header>
+                    <Toast.Body className="text-white">
+                        {toastMessage}
+                    </Toast.Body>
+                </Toast>
+            </ToastContainer>
 
             <Footer />
         </div>

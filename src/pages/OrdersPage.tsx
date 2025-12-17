@@ -20,7 +20,6 @@ const OrdersPage: React.FC = () => {
     const cargarPedidos = async () => {
         try {
             const data = await orderService.obtenerPedidos();
-            // Opcional: Ordenar por fecha descendente (el más nuevo primero)
             const pedidosOrdenados = data.sort((a, b) => 
                 new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime()
             );
